@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script type="text/javascript" src="level1.json"></script>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <title>Data Visualisation</title>
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    #map {
+        height: 100%;
+    }
+</style>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+    //loads level1.json file
+    function loadJSON(callback) {   
+    var xobj = new XMLHttpRequest();
+    xobj.overrideMimeType("application/json");
+    xobj.open('GET', 'level1.json', true);
+    xobj.onreadystatechange = function () {
+      if (xobj.readyState == 4 && xobj.status == "200") {
+                callback(xobj.responseText);
+            }
+        };
+        xobj.send(null);
+    }
+    function initMap() {
+		loadJSON(function(response) {
+	  		var obj = JSON.parse(response);
+	        var map = new google.maps.Map(document.getElementById('map'), {
+	        zoom: 5, //For full view of country
+	        center: new google.maps.LatLng(23.2599333 , 77.412615),  //Center of India : Latlng of Bhopal, MP
+	        mapTypeId: google.maps.MapTypeId.ROADMAP
+	        });
+	        //Cities and their lat lng are defined
+	        var cities = [
+	            ['BLR', 12.9716, 77.5946,11],  
+	            ['DEL', 28.6139, 77.2090,13],
+	            ['MAA', 13.0827, 80.2707,1],
+	            ['BOM', 19.0760, 72.8777,18],
+	            ['GGN', 28.4595, 77.0266,10],
+	            ['HYD', 17.3850, 78.4867,3],
+	        ];  
+	        //Cities will be represented by marker
+	        var arrmarker=[], i, arrcontent=[];
+	        for (i = 0; i < cities.length; i++) {
+	          var marker; 
+	          marker = new google.maps.Marker({
+	            position: new google.maps.LatLng(cities[i][1], cities[i][2]),
+	            map: map,
+	            title: cities[i][0]
+	          });
+	          arrmarker.push(marker);
+	          //Information to be displayed while hovering markers
+	          var content = '' + 'City : ' + cities[i][0] + '<br>' + 'Lat Lng : '+cities[i][1] + ',' +cities[i][2] + '<br>' + 'Cluster Count : '+ cities[i][3]; 
+	          arrcontent.push(content);
+
+	          var infowindow = new google.maps.InfoWindow;
+	        
+	          google.maps.event.addListener(marker, 'mouseover', (function(marker, content) {
+	              return function() {
+	                  infowindow.setContent(content);
+	                  infowindow.open(map, marker);
+	              }
+	          })(marker, content));
+
+	          google.maps.event.addListener(marker, 'mouseout', function(){
+	              infowindow.close();
+	          });
+	          //pan to the clicked position
+	          google.maps.event.addListener(marker, 'click', function() {
+	              map.panTo(this.getPosition());
+	              map.setZoom(12); //For city level view
+
+		          var arrclusterCircle=[];
+		          for(j = 0; j < 58 ; j++ )
+		          {
+		          	//Constructing circle for all the clusters
+		            if(this.title == obj[j].city){
+		            	var clusterCircle = new google.maps.Circle({
+		                    strokeColor: '#FF0000',
+		                    strokeOpacity: 0.8,
+		                    strokeWeight: 1,
+		                    fillColor: '#ffb3b3',
+		                    fillOpacity: 0.10,
+		                    map: map,
+		                    center: {lat : obj[j].cluster_lat, lng : obj[j].cluster_long},
+		                    title: '' + obj[j].cluster_name,
+		                    radius: Math.sqrt(obj[j].total_orders)*12	//radius is dependent on totat orders from that cluster X 12 (scaling factor)
+		                });
+		                
+		                arrclusterCircle.push(clusterCircle);
+
+		                //information to be displayed while hovering the mouse over these circles.
+		                var content = '' + 'Cluster Name : ' + obj[j].cluster_name + '<br>' + 
+		                          'Cluster id : ' + obj[j].cluster_id + '<br>' +
+		                          'Lat Lng : '+ obj[j].cluster_lat + ' , ' + obj[j].cluster_long + '<br>' + 
+		                          'Seller Count : '+ obj[j].total_sellers + '<br>' +
+		                          'Order Count : ' + obj[j].total_orders;
+
+		                //popping Infowindow while hovering circles.
+		              	google.maps.event.addListener(clusterCircle, 'mouseover', (function(clusterCircle, content) {
+		                return function() {
+		                    infowindow.setContent(content);
+		                    infowindow.setPosition(clusterCircle.center);
+		                    infowindow.open(map, clusterCircle);
+		                    }
+		                })(clusterCircle, content));
+
+		              	google.maps.event.addListener(clusterCircle, 'mouseout', function(){
+		                	infowindow.close();
+		                });
+
+		              	//pan to the clicked position
+		              	google.maps.event.addListener(clusterCircle, 'click', function() {
+			                map.panTo(this.center);
+			                map.setZoom(15); //for street level view
+			                var arrmarker_cluster
+		                	for ( k = 59 ; k < obj.length ; k++){
+		                  		if(this.title == obj[k].cluster_name)
+		            			{
+		            				//Sellers represented by their markers
+			                      var marker; 
+			                      marker = new google.maps.Marker({
+				                      position: new google.maps.LatLng(obj[k].seller_lat, obj[k].seller_long),
+				                      map: map,
+				                      title: obj[k].seller_name,
+			                      });
+			                      //Information to be displayed while hovering the mouse on seller markers
+			                      var content = '' + 'Seller Name : ' + obj[k].seller_name + '<br>' + 
+		                                    'Seller ID : '+ obj[k].seller_id + '<br>'+
+		                                    'Lat Lng : '+ obj[k].seller_lat + ',' + obj[k].seller_long + '<br>' +
+		                                    'Order Count : ' + obj[k].seller_orders;
+
+			                      var infowindow = new google.maps.InfoWindow;
+
+			                      //popping up infowindow while hovering over makers
+			                      google.maps.event.addListener(marker, 'mouseover', (function(marker, content) {
+				                      return function() {
+				                      	infowindow.setContent(content);
+				                      	infowindow.open(map, marker);
+				                      }
+			                      })(marker, content));
+
+			                      google.maps.event.addListener(marker, 'mouseout', function(){
+			                      	infowindow.close();
+			                      });
+
+			                      //Double click on seller markers in order to zoom out to city level
+			                      google.maps.event.addListener(marker, 'dblclick', function() {
+			                      	map.setZoom(12);
+			                      });                              
+			                  	}
+							}; 
+		                }); 
+		            } 
+		          } 
+	          });
+				//Double click on ciyty marker in order to zoom out to country level
+		      google.maps.event.addListener(marker, 'dblclick', function() {
+		      	map.setZoom(5);
+		      });
+			}
+    	});
+	}
+</script>
+<script async defer
+src="https://maps.googleapis.com/maps/api/js?key=_____ENTERYOURAPIKEY_____&callback=initMap">
+</script>
+
+</body>
+</html>
